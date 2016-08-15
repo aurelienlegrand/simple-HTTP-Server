@@ -10,7 +10,12 @@ if __name__ == '__main__':
     try:
         sock.connect(server_address)
         print('Client is sending a message')
-        sock.send('Hello, World!'.encode(encoding='UTF-8'))
+        sock.send('GET / HTTP/1.1'.encode(encoding='UTF-8'))
+
+        data = sock.recv(4096)
+        data = data.decode(encoding='UTF-8')
+        print('Recv: ' + data)
+
     finally:
         print('Closing client connection')
         sock.close()
