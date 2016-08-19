@@ -6,10 +6,11 @@ A Basic HTTP server to play around with sockets and HTTP in python.
 ## Done
 
   * Handles basic HTTP GET requests and responses (200 or 404)
+  * Configuration file for port and hostname
+
 
 ## TODO
 
-  * Configuration file and/or console arguments for port, hostname...
   * Handle HEAD HTTP requests
   * Handle favicon and keep-alive requests
   * Currently we read the file for each request, use checksum?

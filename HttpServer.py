@@ -1,6 +1,7 @@
 import socket
 import os
 import re
+import configparser
 
 from setuptools.command.test import test
 
@@ -8,16 +9,25 @@ from setuptools.command.test import test
 class HttpServer:
     """Simple HTTP server"""
 
-    def __init__(self, port=8080):
-        self.port = port
+    def __init__(self):
+        config = configparser.ConfigParser()
+        config.read('httpserver.ini')
+
+        default_config = config['DEFAULT']
+
+        self.port = int(default_config.get('port', '8080'))
+        self.hostname = default_config.get('hostname', 'localhost')
+
+    # def __init__(self, port=8080):
+    #     self.port = port
 
     def start(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(('localhost', self.port))
+        sock.bind((self.hostname, self.port))
 
         # Max 5 connection requests
         sock.listen(5)
-        print('HTTP server started. Listening on port ' + str(self.port) + '.' + os.linesep)
+        print('HTTP server started. Listening on port ' + str(self.port) + ' and hostname ' + self.hostname + '.' + os.linesep)
 
         while True:
             try:
@@ -30,7 +40,14 @@ class HttpServer:
                 req = re.match(r"(.*) (.*) (.*)", data)
                 if req:
                     command = str.lower(req.group(1))
-                    self.process_command(command, data)
+
+                    url = req.group(2)
+                    if url == '/':
+                        url = 'index.html'
+                    if url.startswith('/'):
+                        url = url[1:]
+
+                    self.process_command(command, url)
                 else:
                     print("Malformed request")
 
@@ -38,16 +55,8 @@ class HttpServer:
                 self.connection.close()
                 print('Connnection closed.' + os.linesep)
 
-    def get_request(self, request):
-        print('get ' + request)
-
-        req = re.match(r"(.*) (.*) (.*)", request)
-        url = req.group(2)
-        # protocol = req.group(3)
-        if url == '/':
-            url = 'index.html'
-        if url.startswith('/'):
-            url = url[1:]
+    def get_request(self, url):
+        print('get ' + url)
 
         if os.path.isfile(url):
             file = open(url, 'r')
@@ -59,19 +68,25 @@ class HttpServer:
                        + os.linesep + '</head>' + os.linesep + '<body>' + os.linesep \
                        + '  <h1>Sorry, the page ' + url + ' was not found.</h1>' + os.linesep + '</body>' \
                        + os.linesep + '</html>'
-            self.connection.send(('HTTP/1.1 404 Not Found' + os.linesep + os.linesep + page_not_found).encode(encoding='UTF-8'))
+            self.connection.send(
+                ('HTTP/1.1 404 Not Found' + os.linesep + os.linesep + page_not_found).encode(encoding='UTF-8'))
 
-    def head_request(self, request):
-        print('head ' + request)
+    def head_request(self, url):
+        print('head ' + url)
+
+        if os.path.isfile(url):
+            self.connection.send(('HTTP/1.1 200 OK' + os.linesep + os.linesep).encode(encoding='UTF-8'))
+        else:
+            self.connection.send(('HTTP/1.1 404 Not Found' + os.linesep + os.linesep).encode(encoding='UTF-8'))
 
     dispatch = {
         'get': get_request,
         'head': head_request
     }
 
-    def process_command(self, command, request):
+    def process_command(self, command, url):
         if command in self.dispatch:
-            self.dispatch[command](self, request)
+            self.dispatch[command](self, url)
         else:
             print('Unknown command ' + command)
 
